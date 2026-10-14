@@ -52,6 +52,10 @@ During the October 2026 testing session:
 
 These results describe the saved testing snapshot. Source values and missing observations may change following subsequent data publication or revision.
 
+Historical Data Quality Evidence
+
+During data retrieval on 13 October 2026, one missing RBA cash-rate observation was identified and recorded in a separate CSV log. A subsequent retrieval on 15 October found no missing values, indicating that the previously unavailable observation had since become available. The earlier test output is preserved as historical evidence, while the latest CSV reflects the updated dataset.
+
 Proposed Production Architecture
 
 The wider implementation would include scheduled ingestion, separate raw and curated storage, validation, transformation, metric calculation and management reporting.
