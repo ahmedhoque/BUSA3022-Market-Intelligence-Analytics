@@ -88,10 +88,81 @@ AI assistance was used during development of the Python workflow. Generated inst
 
 One incomplete testing instruction was identified when changing a URL variable alone produced no output. The procedure was corrected by running the full HTTP request and exception-handling code, which successfully recorded a simulated 404 error.
 
+## Part 2 – Data Curation Plan
+
+### Objective
+
+Part 2 focuses on cleaning, aligning, and transforming the financial datasets collected in Part 1 into an analysis-ready dataset. The objective is to calculate financial metrics that help Really Big Bank monitor Australian market trends and support future benchmarking.
+
+### Implemented Proof of Concept
+
+The Python notebook demonstrates:
+
+- Data quality checks for missing values, duplicate dates, and invalid closing prices.
+- Standardisation of dates and conversion of ASX timestamps to the Australia/Sydney time zone.
+- Alignment of RBA Cash Rate and S&P/ASX 200 observations using matching calendar dates.
+- Calculation of three financial metrics:
+  - **10-Day Moving Average:** Average ASX 200 closing price over ten trading sessions.
+  - **Daily Percentage Return:** Percentage change in closing price compared with the previous trading session.
+  - **14-Day Volatility:** Sample standard deviation of daily percentage returns over fourteen trading sessions.
+- Independent validation of all three metrics.
+- Export of curated data and data-quality logs.
+
+### Observed Results
+
+The analysis covered 16 June to 13 October 2026.
+
+- 86 ASX 200 observations were successfully aligned with RBA records.
+- No unmatched dates or missing RBA rates were found within the analysis period.
+- One missing RBA cash-rate observation on 14 October 2026 was recorded in a separate quality log.
+- All three metric validation checks passed.
+- Initial unavailable rolling calculations were retained as null values rather than replaced with artificial values.
+
+### How to Run the Proof of Concept
+
+1. Download `Part2_Data_Curation.ipynb` from the `notebook/` folder.
+2. Open the notebook in Google Colab.
+3. Download both source files from the `raw/` folder:
+   - `asx200_retrieved.csv`
+   - `rba_F1_20261015_063926.xlsx`
+4. Upload both files to the Google Colab session.
+5. Select **Runtime → Run all**.
+6. Review the data-quality checks, alignment results, and metric validation outputs.
+7. Download the generated files from the `curated/` and `logs/` folders.
+
+### Output Files
+
+**curated/curated_market_data.csv**
+
+Contains 86 aligned observations with the following fields:
+
+- Date
+- ASX_Close
+- RBA_Rate
+- MA_10
+- Daily_Return
+- Volatility_14
+
+This dataset is intended for use in Part 3 – Dashboard and Reporting.
+
+**logs/part2_data_quality_log.csv**
+
+Records the missing RBA observation identified during data-quality checking, including its date, source, issue, and treatment.
+
+### Data Modelling and Validation
+
+The proof of concept uses consistent column naming, standardised dates, documented metric definitions, and explicit treatment of missing values.
+
+Independent calculations were used to verify the financial metrics. AI-assisted transformation code was reviewed through execution and validation checks.
+
+The current alignment supports historical daily comparisons. It does not independently verify whether each RBA observation was publicly available before the corresponding ASX market close. Publication timing would require further validation before using the data for real-time decisions.
+
+The curated dataset and validation evidence provide a foundation for the dashboard developed in Part 3.
+
 Project Status
 
 * Part 1 - Data Pipeline: Initial proof of concept and architecture completed.
-* Part 2 - Data Curation: To be added.
+* Part 2 - Data Curation: Proof of concept, validated metrics, and curated dataset completed.
 * Part 3 - Dashboard and Reporting: To be added.
 
 The repository will be updated as subsequent components are developed.
