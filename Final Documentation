@@ -1,1 +1,98 @@
+Introduction
+This report presents an Analytics Implementation Plan and Portfolio for Really Big Bank (RBB), focusing on the development of a reliable market intelligence analytics system. Using the Reserve Bank of Australia's Interbank Overnight Cash Rate and S&P/ASX 200 market data, the project outlines a structured approach to data ingestion, validation, transformation and management reporting. Supported by Python-based proofs of concept and interactive Power BI dashboards, the proposed solution demonstrates technical feasibility while emphasizing data quality, responsible AI utilization, analytical governance and effective decision-making.
+Part 1: Data Pipeline Implementation Plan
+1. Data Pipeline Implementation Plan
+1.1 Data Source Selection
+To monitor trends in the Australian market and to assist with setting performance benchmarks in the future, Really Big Bank (RBB) needs dependable financial data. The two sources chosen were the Reserve Bank of Australia's (RBA) daily Interbank Overnight Cash Rate and the closing prices of the S&P/ASX 200 index obtained via Yahoo Finance (Reserve Bank of Australia, n.d.; Yahoo Finance, n.d.). The cash rate gives information about the state of monetary conditions, whereas the ASX 200 shows the performance of the wider Australian equity market. Based on these indicators, RBB is able to examine the relationship between changes in market movements and shifts in interest rates.
+1.2 Data Ingestion and Scheduling
+Python was chosen for use in data ingestion because of its ease of use and suitability for carrying out repeated financial data processing. The requests library pulls the RBA's F1 Excel workbook directly, and yfinance is used to obtain the historical ASX 200 observations. A initial collection period of 120 calendar days was selected in order to include extra observations for the later rolling calculations.
+The production pipeline suggested would be set to run automatically at 7:00 pm every weekday in Sydney, following the ASX trading session. A scheduling service, such as GitHub Actions, would trigger the ingestion scripts on weekdays, with execution configured to account for Sydney's daylight-saving time. For each execution, source availability and the freshness of the data would be checked, and any failed requests would be retried and logged for later investigation. Although the present proof of concept shows that retrieval is repeatable, automated scheduling is still only proposed as an implementation.
+1.3 Storage and Pipeline Architecture
+Figure 1 shows that the architecture includes ingestion, raw storage, validation, transformation and curated storage; original RBA workbooks are kept using timestamped filenames and the retrieved ASX 200 observations are stored as CSV snapshots. In production, version control is applied to both sources in order to preserve the historical retrievals. Retaining the original datasets also allows the bank to reprocess historical observations if calculation rules change or errors are discovered. 
+Data validation takes place before transformation, during which the dates are standardized, the time-zone differences are dealt with and the financial metrics are calculated. The results of the validation are then stored separately for use in dashboard reporting. The fact that the data is stored separately serves to protect the integrity of the source, enables reproducibility and allows analysts to trace the results back to their original records.
+ 
+Figure 1. An architecture for the proposed data pipeline of Really Big Bank's market intelligence analytics system.
+1.4 Error Handling and Data Quality
+It is important to ensure that the data is reliable when it is being used as a basis for management decisions, and so the pipeline includes checks for missing values, invalid records, and failed downloads.
+The testing identified 86 RBA observations within the selected analysis period (16 June to 13 October 2026), with no missing cash-rate values. One missing RBA cash-rate observation was identified on 14 October 2026, outside the selected analysis period. This issue was recorded in a separate data-quality log without inputting a replacement value.
+The method of handling failures involved the use of a deliberately incorrect URL for the Reserve Bank of Australia (RBA). The Python script detected the HTTP 404 error that resulted and noted the timestamp, the source, and the error message in a CSV log file. These measures set up an auditable basis for identifying and investigating data-quality problems. Missing observations would be retained in the quality log and excluded from calculations requiring valid rates until investigated. The system would flag unavailable or outdated macroeconomic observations rather than treating them as newly verified data.
+1.5 Proof of Concept and Leadership Handover
+The proof of concept for Google Colab shows that it is possible to carry out retrieval, preserve the raw data, detect missing values, and log download errors. Even though the scope is limited, these functional elements prove that the proposed pipeline is technically feasible.
+When carrying out the handover operation, the junior analyst would be given a documented repository, together with a data dictionary, the execution instructions and a validation checklist. To aid with maintenance, consistent naming conventions, code reviews and testing standards would be applied. Before being deployed, AI-assisted code would also need to be independently verified against the expected outputs in order to make sure that the efficiency gains do not affect data accuracy or accountability. Before approving changes, the analytics lead would require the junior analyst to demonstrate successful ingestion, verify calculated outputs against expected results, and confirm that errors were appropriately logged. 
+Part 2: Data Curation Plan
+2.1 Metric Definitions and Business Justification
+Really Big Bank (RBB) uses the Reserve Bank of Australia’s (RBA) Interbank Overnight Cash Rate combined with S&P/ASX 200 closing prices to benchmark performance and track market trends. Three metrics were implemented using the pandas library in Python:
+•	Moving Average (MA_10): The rolling(10, min_periods=10) average of the last 10 ASX trading-day closing prices.average() It averages out short-term fluctuations to determine longer-term market trends.
+•	Daily Percentage Return – Percentage change between consecutive closing prices (i.e. Daily Percentage Return = pct_change(fill_method=None) * 100). It tracks market performance on a daily basis. 
+•	14-Day Volatility: Sample standard deviation of fourteen daily returns, calculated using rolling (14, min_periods=14).std(ddof=1). It is expressed in percentage points and helps identify market uncertainty.
+These metrics allow for repeatable financial monitoring. RBA rates provide monetary policy context, not causation. 
+ 
+Figure 1. Calculated financial metrics.
+2.2 Data Alignment and Time Zone Handling 
+The datasets were standardized and aligned using pandas. RBA Excel dates were converted to calendar dates and ASX timestamps were parsed as UTC and converted to Australia/Sydney by tz_convert(), reduced to Sydney dates considering the daylight saving.
+ASX trading dates set the common analysis period (16 June-13 October 2026). Thus, RBA records were filtered and both sources were aligned through a left join (pd.merge()). validate="one_to_one" and indicator=True checked matching integrity.
+The results confirmed 86 ASX observations, 86 successful matches, 0 unmatched dates and 0 missing RBA rates. 
+ 
+Figure 2. Data alignment validation results.
+We avoid artificial weekend observations by using trading dates. But a matching date does not tell you when the RBA information was available to the public. When the information is published it has to be checked before using it in real-time or for prediction. 
+2.3 Data Quality Management
+Automated checks were conducted for missing values, duplicate dates and invalid ASX closing prices. A missing RBA cash rate observation was located on 14 October 2026, beyond the selected analysis period. It was kept in logs/part2_data_quality_log.csv instead of being replaced by an unsupported estimate.
+No RBA rates were missing, and no ASX closing prices were invalid in the matched dataset. Nine for MA_10, one for Daily Return and fourteen for Volatility_14, were deliberately left as null values, due to not enough historic observations and not due to source errors. 
+ 
+Figure 3. Curated data export and quality log results.
+It improves traceability by logging exceptions instead of silently dropping records. Analysts should review flagged issues prior to approving corrections, and automated alerts could be used to support future monitoring. 
+2.4 Proof of Concept and Modelling Standards
+Both datasets were imported, validated, aligned and transformed in a Google Colab proof of concept. Arithmetic or NumPy were used to independently verify the calculations. Agreement with pandas outputs were checked using np.isclose(). 
+
+Metric	Independently calculated	Result
+Daily Return	0.544979%	PASSED
+10-Day Moving Average	8,837.160059	PASSED
+14-Day Volatility	0.630920 percentage points	PASSED
+
+ 
+Figure 4. Independent calculation validation.
+ 
+Figure 5. Independent calculation validation.
+The validated output, curated/curated_market_data.csv, comprises 86 observations and six fields: Date, ASX_Close, RBA_Rate, MA_10, Daily_Return and Volatility_14.
+RBB should document metric definitions, date-handling rules, validation tests and exception procedures for team consistency. Junior analysts must reproduce calculations and audit AI-assisted code against independently validated results prior to deployment. These controls ensure accountability, reproducibility and reliable management reporting. 
+Part 3: Dashboard & Reporting Plan (Portfolio Piece) 
+3.1 Dashboard Design and Objectives
+Really Big Bank (RBB) developed two Power BI dashboard views to transform the validated financial data from Part 2 into meaningful market intelligence for financially literate, non-technical management. The dashboards address market performance over 90 calendar days, macroeconomic conditions and potential market risks requiring attention.
+The dashboards use curated/curated_market_data.csv, containing 86 aligned observations of S&P/ASX 200 closing prices, RBA Interbank Overnight Cash Rates and three calculated financial metrics. Power BI was selected for its interactive visualizations, dynamic reporting and accessibility for management decision-making.
+3.2 Market Trends and Macroeconomic Analysis
+The primary dashboard displays ASX 200 closing prices alongside the 10-day moving average, allowing management to distinguish daily fluctuations from recent market trends. Four KPI cards summarize the latest index closing price, moving average, cash rate and 14-day volatility.
+A macroeconomic comparison presents RBA cash-rate movements alongside ASX 200 performance using separate axes. This enables management to examine potential alignment or divergence between monetary conditions and equity-market movements without assuming causation.
+3.3 Risk Monitoring and Management Overview
+A Red/Amber/Green (RAG) monitoring indicator was developed using the validated 14-day volatility metric. Volatility below 0.50% is classified as Green, 0.50% to below 0.70% Amber, and 0.70% or above Red. These exploratory thresholds support consistent monitoring but are not formal banking risk limits.
+The latest observation triggers a Red signal, indicating elevated volatility under the defined criteria. Dashboard 1 combines these indicators with concise management insights to support interpretation of market conditions.
+
+FIGURE 6. DASHBOARD 1
+3.4 Interactive Proof of Concept and AI Agent Lens
+Dashboard 2 provides a functional proof of concept through interactive date slicers, selectable reporting periods, hover tooltips, cross-filtering and dynamically updated KPI cards and risk indicators. These features demonstrate how curated data can support responsive management reporting rather than static visualization.
+ 
+FIGURE 7. DASHBOARD 2
+AI assistance supported dashboard design, visualization selection and DAX development. The outputs were reviewed against the curated data and refined to ensure numerical accuracy, consistent volatility thresholds and suitable presentation for non-technical stakeholders. The review process also considered correct percentage-point formatting and the distinction between observed relationships and causal conclusions.
+3.5 Leadership Lens and Reporting Standards
+From an analytics leadership perspective, consistent metric definitions, reporting periods, visual standards and documented assumptions are essential for reliable communication. Junior analysts would be required to validate dashboard outputs against approved datasets, verify AI-assisted measures and maintain clear documentation of monitoring thresholds.
+The dashboards follow a structured narrative of market performance, macroeconomic context and volatility monitoring. This approach supports analytical accountability, effective handover and management understanding of emerging market conditions and their limitations.
+
+Part 4: Presentation Link 
+The YouTube link for our team’s presentation: https://youtu.be/5mr7HgausDQ
+	Slides were made using Canva
+	Editing was done through Microsoft Clipchamp
+Conclusion
+The proposed Market Intelligence Analytics System demonstrates how reliable financial data can be transformed into meaningful management insights. Through repeatable data ingestion, validated financial metrics and interactive Power BI dashboards, the project establishes a practical foundation for monitoring market trends, macroeconomic conditions and volatility. The implemented proofs of concept confirm technical feasibility, while documented quality controls, AI validation and leadership standards support transparency and accountability. Although further automation and governance would be required for production deployment, the solution provides a structured foundation for future financial performance benchmarking at Really Big Bank.
+
+
+
+ 
+
+References
+Reserve Bank of Australia. (n.d.). Statistical tables. https://www.rba.gov.au/statistics/tables/
+Yahoo Finance. (n.d.). S&P/ASX 200 [XJO] (^AXJO) historical data. https://finance.yahoo.com/quote/%5EAXJO/history/
+GitHub URL
+https://github.com/ahmedhoque/BUSA3022-Market-Intelligence-Analytics
+	The GitHub repository serves as a central location for all project deliverables, including final documentation with Power BI dashboards, Python scripts, datasets, validation evidence, presentation recordings.
+	The README provides dedicated sections for each component, ensuring organized access to all technical materials, supporting evidence and assessment submissions.
+
 
